@@ -1,0 +1,18 @@
+[Unit]
+Description=FreeSWITCH
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/freeswitch/bin/freeswitch -u freeswitch -g freeswitch -ncwait -nonat
+ExecStop=/usr/local/freeswitch/bin/freeswitch -stop
+Restart=always
+User=root
+Group=root
+LimitCORE=infinity
+LimitNOFILE=999999
+LimitNPROC=60000
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
