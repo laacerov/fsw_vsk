@@ -1,0 +1,10 @@
+version: "3"
+services:
+  freeswitch:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    container_name: freeswitch
+    volumes:
+      - ./conf/:/usr/local/freeswitch/conf/
+    network_mode: "host"

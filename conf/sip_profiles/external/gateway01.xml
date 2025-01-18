@@ -1,0 +1,12 @@
+<include>
+  <gateway name="gw01-mibot">
+  <param name="proxy" value="34.95.229.252:5060"/>
+  <param name="register" value="false"/>
+  <param name="register-transport" value="udp"/>
+  <param name="contact-params" value="server=FS00dev"/>
+  <param name="extension-in-contact" value="false"/>
+  <param name="ping" value="25"/>
+  <param name="cid-type" value="rpid"/>
+  </gateway>
+</include>
+
