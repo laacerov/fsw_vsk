@@ -1,0 +1,208 @@
+services:
+  # FreeSWITCH con mod_vosk - Motor principal
+  freeswitch:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.optimized
+    container_name: freeswitch-detector
+    ports:
+      - "5060:5060/udp"     # SIP UDP
+      - "5060:5060/tcp"     # SIP TCP  
+      - "8021:8021/tcp"     # Event Socket (fs_cli)
+    volumes:
+      - ./conf/:/usr/local/freeswitch/conf/
+      - ./scripts/:/usr/local/freeswitch/scripts/
+      - ./audio_temp/:/tmp/recordings/
+    environment:
+      - FS_CLI_HOST=0.0.0.0
+      - FS_CLI_PORT=8021
+      - FS_CLI_PASSWORD=ClueCon
+    depends_on:
+      - vosk-server
+      - classification-api
+      - postgres
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+    ulimits:
+      memlock: -1
+      stack: 8192
+
+  # Servidor Vosk especializado en buzones
+  vosk-server:
+    image: lacerovasq/voicemail
+    container_name: vosk-voicemail
+    ports:
+      - "2800:2800"
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+    environment:
+      - MODEL_PATH=/opt/vosk-model
+    # Opcional: Montar modelo personalizado
+    # volumes:
+    #   - ./vosk-models/:/opt/vosk-model/
+
+  # API de Clasificación e Inteligencia
+  classification-api:
+    build: ./classification-api
+    container_name: classification-api
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://voicemail_user:secure_password@postgres:5432/voicemail_detection
+      - VOSK_SERVER_URL=ws://vosk-voicemail:2800
+      - CONFIDENCE_THRESHOLD_HIGH=85.0
+      - CONFIDENCE_THRESHOLD_LOW=60.0
+      - DEBUG_MODE=true
+    depends_on:
+      - postgres
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+    volumes:
+      - ./api_logs/:/app/logs/
+
+  # Base de Datos PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: voicemail-db
+    environment:
+      - POSTGRES_DB=voicemail_detection
+      - POSTGRES_USER=voicemail_user
+      - POSTGRES_PASSWORD=secure_password
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/pgdata
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./sql/sample_data.sql:/docker-entrypoint-initdb.d/02-sample.sql
+    ports:
+      - "5432:5432"  # Para acceso externo (desarrollo)
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voicemail_user -d voicemail_detection"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis para caché y colas
+  redis:
+    image: redis:7-alpine
+    container_name: voicemail-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # Panel de Administración Web
+  admin-panel:
+    build: ./admin-panel
+    container_name: voicemail-admin
+    ports:
+      - "3000:3000"
+    environment:
+      - API_BASE_URL=http://classification-api:8080
+      - DATABASE_URL=postgresql://voicemail_user:secure_password@postgres:5432/voicemail_detection
+    depends_on:
+      - classification-api
+      - postgres
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+    volumes:
+      - ./admin_logs/:/app/logs/
+
+  # Nginx como proxy reverso (opcional)
+  nginx:
+    image: nginx:alpine
+    container_name: voicemail-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl/:/etc/nginx/ssl/
+    depends_on:
+      - admin-panel
+      - classification-api
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+
+  # Monitoreo con Prometheus (opcional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: voicemail-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # Grafana para dashboards (opcional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: voicemail-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/:/etc/grafana/provisioning/
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # Worker para procesamiento en background
+  background-worker:
+    build: ./background-worker
+    container_name: voicemail-worker
+    environment:
+      - DATABASE_URL=postgresql://voicemail_user:secure_password@postgres:5432/voicemail_detection
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - voicemail-detection
+    restart: unless-stopped
+    volumes:
+      - ./worker_logs/:/app/logs/
+      - ./audio_temp/:/app/audio_processing/
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  voicemail-detection:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Comandos útiles:
+# docker-compose -f docker-compose.full-system.yml up -d
+# docker-compose -f docker-compose.full-system.yml --profile monitoring up -d  # Con monitoreo
+# docker-compose -f docker-compose.full-system.yml logs -f freeswitch
+# docker-compose -f docker-compose.full-system.yml exec postgres psql -U voicemail_user -d voicemail_detection

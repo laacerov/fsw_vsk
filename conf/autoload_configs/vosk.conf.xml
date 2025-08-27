@@ -1,6 +1,6 @@
 <configuration name="vosk.conf" description="Vosk ASR Configuration">
   <settings>
-	  <param name="server-url" value="ws://10.128.0.61:2800"/>
+	  <param name="server-url" value="ws://172.17.0.1:2700"/>
     <param name="return-json" value="0"/>
   </settings>
 </configuration>

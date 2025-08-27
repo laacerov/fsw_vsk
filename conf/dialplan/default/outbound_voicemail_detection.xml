@@ -1,0 +1,144 @@
+<!--
+Dialplan para Llamadas Salientes con Detección de Buzones
+Maneja números con prefijo 77751XXXXXXXX
+-->
+<include>
+
+  <!-- Extensión Principal: Llamadas Salientes con Detección -->
+  <extension name="outbound_voicemail_detection">
+    <condition field="destination_number" expression="^(77751)(\d{7,15})$">
+      
+      <!-- Configurar variables de la llamada saliente -->
+      <action application="set" data="auth_prefix=$1"/>
+      <action application="set" data="destination_clean=$2"/>
+      <action application="set" data="full_destination=${auth_prefix}${destination_clean}"/>
+      <action application="set" data="call_timeout=60"/>
+      <action application="set" data="call_uuid=${uuid}"/>
+      <action application="set" data="outbound_call=true"/>
+      <action application="set" data="voicemail_detection_enabled=true"/>
+      
+      <!-- Log del inicio de llamada saliente -->
+      <action application="log" data="INFO === LLAMADA SALIENTE CON DETECCIÓN ==="/>
+      <action application="log" data="INFO Call-ID: ${call_uuid}"/>
+      <action application="log" data="INFO Caller: ${caller_id_number}"/>
+      <action application="log" data="INFO Destination: ${full_destination}"/>
+      <action application="log" data="INFO Gateway: voicemail_detection_gw"/>
+      
+      <!-- Configurar Caller ID para saliente -->
+      <action application="set" data="effective_caller_id_name=VM Detection"/>
+      <action application="set" data="effective_caller_id_number=${auth_prefix}"/>
+      
+      <!-- Variables para el Bridge -->
+      <action application="set" data="continue_on_fail=true"/>
+      <action application="set" data="hangup_after_bridge=true"/>
+      
+      <!-- Configurar codec preference para llamadas salientes -->
+      <action application="set" data="absolute_codec_string=PCMU,PCMA,G729"/>
+      
+      <!-- Ejecutar Bridge con Detección Paralela -->
+      <action application="lua" data="outbound_bridge_with_detection.lua"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Extensión Auxiliar: Procesar respuesta del Bridge -->
+  <extension name="process_outbound_result">
+    <condition field="destination_number" expression="^(process_bridge_result)$">
+      
+      <action application="log" data="INFO === PROCESANDO RESULTADO BRIDGE ==="/>
+      
+      <!-- Evaluar resultado basado en variables de sesión -->
+      <action application="lua" data="evaluate_outbound_result.lua"/>
+      
+      <!-- Acción basada en el resultado de detección -->
+      <action application="transfer" data="${bridge_result_action} XML default"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Manejo de llamadas exitosas (sin detección de buzón) -->
+  <extension name="outbound_call_successful">
+    <condition field="destination_number" expression="^(call_successful)$">
+      
+      <action application="log" data="INFO === LLAMADA COMPLETADA EXITOSAMENTE ==="/>
+      <action application="log" data="INFO Call-ID: ${call_uuid}"/>
+      <action application="log" data="INFO Duration: ${billsec} seconds"/>
+      
+      <!-- Registrar llamada exitosa en BD -->
+      <action application="lua" data="log_detection.lua successful ${billsec}"/>
+      
+      <!-- Finalizar llamada normalmente -->
+      <action application="hangup" data="NORMAL_CLEARING"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Manejo de buzón detectado en llamada saliente -->
+  <extension name="outbound_voicemail_detected">
+    <condition field="destination_number" expression="^(vm_detected_outbound)$">
+      
+      <action application="log" data="WARNING === BUZÓN DETECTADO EN SALIENTE ==="/>
+      <action application="log" data="INFO Call-ID: ${call_uuid}"/>
+      <action application="log" data="INFO Destination: ${full_destination}"/>
+      <action application="log" data="INFO Confidence: ${detection_confidence}%"/>
+      
+      <!-- Registrar detección en base de datos -->
+      <action application="lua" data="log_detection.lua voicemail_outbound ${detection_confidence}"/>
+      
+      <!-- Cortar llamada con causa específica -->
+      <action application="log" data="INFO Cortando llamada - Buzón detectado"/>
+      <action application="hangup" data="CALL_REJECTED"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Manejo de errores en llamadas salientes -->
+  <extension name="outbound_call_failed">
+    <condition field="destination_number" expression="^(call_failed)$">
+      
+      <action application="log" data="WARNING === LLAMADA SALIENTE FALLÓ ==="/>
+      <action application="log" data="INFO Call-ID: ${call_uuid}"/>
+      <action application="log" data="INFO Cause: ${hangup_cause}"/>
+      
+      <!-- Registrar fallo -->
+      <action application="lua" data="log_detection.lua failed 0"/>
+      
+      <!-- Retornar causa original -->
+      <action application="hangup" data="${hangup_cause}"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Extensión para números de prueba local -->
+  <extension name="test_voicemail_numbers">
+    <condition field="destination_number" expression="^(777519999|777518888|777517777)$">
+      
+      <action application="log" data="INFO === NÚMERO DE PRUEBA BUZÓN ==="/>
+      <action application="answer"/>
+      <action application="sleep" data="2000"/>
+      
+      <!-- Simular buzón de voz -->
+      <action application="playback" data="tone_stream://%(2000,4000,440,480);loops=1"/>
+      <action application="playback" data="silence_stream://500"/>
+      <action application="speak" data="tts_commandline|espeak|Hola, has llamado a María. No puedo atender ahora. Deja tu mensaje después del tono."/>
+      <action application="playback" data="tone_stream://%(1000,0,800);loops=1"/>
+      <action application="playback" data="silence_stream://30000"/>
+      
+      <action application="hangup" data="NORMAL_CLEARING"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Routing para llamadas locales de prueba -->
+  <extension name="local_test_routing">
+    <condition field="destination_number" expression="^(1\d{3})$">
+      
+      <action application="log" data="INFO === LLAMADA LOCAL A EXTENSIÓN ==="/>
+      <action application="bridge" data="user/${destination_number}@${domain_name}"/>
+      <action application="answer"/>
+      <action application="voicemail" data="default ${domain_name} ${destination_number}"/>
+      
+    </condition>
+  </extension>
+
+</include>

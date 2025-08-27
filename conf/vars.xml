@@ -290,7 +290,7 @@
        for external_rtp_ip and external_sip_ip
   -->
 
-  <!-- external_rtp_ip
+    
        Can be an one of:
            ip address: "12.34.56.78"
            a stun server lookup: "stun:stun.server.com"
@@ -300,9 +300,9 @@
        If unspecified, the bind_server_ip value is used.
        Used by: sofia.conf.xml dingaling.conf.xml
   -->
-  <X-PRE-PROCESS cmd="stun-set" data="external_rtp_ip=stun:stun.freeswitch.org"/>
+  <X-PRE-PROCESS cmd="stun-set" data="external_rtp_ip=192.168.100.50"/>
 
-  <!-- external_sip_ip
+    
       Used as the public IP address for SDP.
        Can be an one of:
            ip address: "12.34.56.78"
@@ -313,7 +313,7 @@
        If unspecified, the bind_server_ip value is used.
        Used by: sofia.conf.xml dingaling.conf.xml
   -->
-  <X-PRE-PROCESS cmd="stun-set" data="external_sip_ip=stun:stun.freeswitch.org"/>
+  <X-PRE-PROCESS cmd="stun-set" data="external_sip_ip=192.168.100.50"/>
 
   <!-- unroll-loops
        Used to turn on sip loopback unrolling.

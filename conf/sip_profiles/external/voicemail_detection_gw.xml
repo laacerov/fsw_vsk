@@ -1,0 +1,48 @@
+<!--
+Gateway para Sistema de Detección de Buzones
+Conexión saliente a 172.16.250.197 con prefijo 77751
+-->
+<include>
+  <gateway name="voicemail_detection_gw">
+    <!-- Información del Proveedor -->
+    <param name="proxy" value="172.16.250.197"/>
+    <param name="realm" value="172.16.250.197"/>
+    <param name="register" value="true"/>
+    
+    <!-- Credenciales de Autenticación -->
+    <param name="username" value="77751"/>
+    <param name="password" value="77751"/>
+    <param name="from-user" value="77751"/>
+    <param name="from-domain" value="172.16.250.197"/>
+    
+    <!-- Configuración de Conexión -->
+    <param name="expire-seconds" value="3600"/>
+    <param name="register-seconds" value="1800"/>
+    <param name="retry-seconds" value="30"/>
+    <param name="caller-id-in-from" value="false"/>
+    
+    <!-- Configuración SIP -->
+    <param name="extension-in-contact" value="true"/>
+    <param name="ping" value="25"/>
+    <param name="rfc2833-pt" value="101"/>
+    <param name="codec-prefs" value="PCMU,PCMA,G729"/>
+    
+    <!-- Configuración de Transporte -->
+    <param name="extension" value="77751"/>
+    <param name="context" value="public"/>
+    
+    <!-- Variables del Gateway para Detección -->
+    <variable name="enable_voicemail_detection" value="true"/>
+    <variable name="detection_context" value="voicemail_outbound"/>
+    <variable name="gateway_name" value="voicemail_detection_gw"/>
+    
+    <!-- Configuración de Eventos -->
+    <param name="register-transport" value="udp"/>
+    <param name="contact-params" value="transport=udp"/>
+    
+    <!-- Debug (desactivar en producción) -->
+    <param name="debug" value="1"/>
+    <param name="sip-trace" value="yes"/>
+    <param name="sip-capture" value="no"/>
+  </gateway>
+</include>

@@ -7,4 +7,11 @@ services:
     container_name: freeswitch
     volumes:
       - ./conf/:/usr/local/freeswitch/conf/
-    network_mode: "host"
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "8021:8021/tcp"
+    environment:
+      - FS_CLI_HOST=127.0.0.1
+      - FS_CLI_PORT=8021
+      - FS_CLI_PASSWORD=ClueCon

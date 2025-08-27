@@ -1,0 +1,48 @@
+<!--
+Extensión de Prueba ASR - Simulación de Buzón de Voz
+Conecta llamadas al 77751954340880 directamente al ASR para pruebas
+-->
+<include>
+
+  <!-- Extensión para pruebas directas de ASR -->
+  <extension name="asr_voicemail_test">
+    <condition field="destination_number" expression="^(77751954340880)$">
+      
+      <action application="log" data="INFO === PRUEBA ASR DIRECTA ===" />
+      <action application="log" data="INFO Número de prueba: $1" />
+      <action application="log" data="INFO Caller: ${caller_id_number}" />
+      
+      <!-- Contestar la llamada -->
+      <action application="answer" />
+      <action application="sleep" data="1000" />
+      
+      <!-- Reproducir saludo de buzón simulado -->
+      <action application="playback" data="tone_stream://%(300,200,400,450)" />
+      <action application="speak" data="tts_commandline|espeak|Hola, gracias por llamar. No puedo atender en este momento. Por favor deja tu mensaje después del tono." />
+      <action application="playback" data="tone_stream://%(800,0,800)" />
+      
+      <!-- Activar detección ASR -->
+      <action application="log" data="INFO Iniciando detección ASR..." />
+      <action application="detect_speech" data="vosk default default" />
+      
+      <!-- Grabar por 10 segundos para que ASR analice -->
+      <action application="log" data="INFO Grabando y analizando con ASR..." />
+      <action application="record" data="/tmp/voicemail_test_${uuid}.wav 10 200" />
+      
+      <!-- Detener ASR -->
+      <action application="detect_speech" data="stop" />
+      
+      <!-- Procesar resultado -->
+      <action application="log" data="INFO Procesando resultado de detección..." />
+      <action application="set" data="detection_result=${detect_speech_result}" />
+      <action application="log" data="INFO Resultado ASR: ${detection_result}" />
+      
+      <!-- Evaluar si detectó buzón -->
+      <action application="lua" data="evaluate_asr_result.lua" />
+      
+      <action application="hangup" data="NORMAL_CLEARING" />
+      
+    </condition>
+  </extension>
+
+</include>

@@ -1,0 +1,131 @@
+# FreeSWITCH con mod_vosk para detección de buzones de voz
+# Dockerfile optimizado basado en los pasos de compilación exitosos
+FROM ubuntu:20.04
+
+# Establece la variable de entorno para evitar prompts interactivos
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Actualiza el sistema e instala todas las dependencias necesarias
+RUN sed -i 's|http://.*.ubuntu.com|http://archive.ubuntu.com|g' /etc/apt/sources.list && \
+    apt-get update && apt-get install --no-install-recommends -y \
+    build-essential pkg-config uuid-dev zlib1g-dev libjpeg-dev libsqlite3-dev \
+    libcurl4-openssl-dev libpcre3-dev libspeexdsp-dev libldns-dev libedit-dev \
+    libtiff5-dev yasm libopus-dev libsndfile1-dev unzip libavformat-dev \
+    libswscale-dev libavresample-dev liblua5.2-dev liblua5.2-0 cmake libpq-dev \
+    unixodbc-dev autoconf automake ntpdate libxml2-dev libpq-dev libpq5 sngrep \
+    git wget curl ca-certificates libltdl-dev libtool libtool-bin \
+    libssl-dev libncurses5-dev libjson-c-dev libsystemd-dev \
+    libwebsockets-dev libjansson-dev libpcre2-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Instalar libtpl manualmente (requerido por FreeSWITCH)
+RUN cd /usr/local/src && \
+    wget -O libtpl-1.6.1.tar.gz https://github.com/troydhanson/tpl/archive/v1.6.1.tar.gz && \
+    tar -xzf libtpl-1.6.1.tar.gz && \
+    cd tpl-1.6.1 && \
+    gcc -fPIC -shared -o libtpl.so src/tpl.c && \
+    cp src/tpl.h /usr/local/include/ && \
+    cp libtpl.so /usr/local/lib/ && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/libtpl.conf && \
+    ldconfig
+
+# Compila e instala libks con branch vosk-fix (CRÍTICO para mod_vosk)
+RUN git clone --branch vosk-fix --single-branch -c http.sslverify=false https://github.com/alphacep/libks.git /usr/local/src/libks && \
+    cd /usr/local/src/libks && \
+    cmake . && \
+    make && make install && \
+    ldconfig
+
+# Compila e instala sofia-sip
+RUN git clone -c http.sslverify=false https://github.com/freeswitch/sofia-sip.git /usr/local/src/sofia-sip && \
+    cd /usr/local/src/sofia-sip && \
+    libtoolize && \
+    aclocal && \
+    autoheader && \
+    autoconf && \
+    automake --add-missing && \
+    ./configure && \
+    make && make install && \
+    ldconfig
+
+# Compila e instala spandsp
+RUN git clone -c http.sslverify=false https://github.com/freeswitch/spandsp.git /usr/local/src/spandsp && \
+    cd /usr/local/src/spandsp && \
+    ./bootstrap.sh && \
+    ./configure && \
+    make && make install && \
+    ldconfig
+
+# Descarga FreeSWITCH con mod_vosk integrado (alphacep fork)
+RUN cd /usr/local/src && \
+    git clone -c http.sslverify=false https://github.com/alphacep/freeswitch.git && \
+    cd freeswitch && \
+    ./bootstrap.sh
+
+# Crear configuración mínima de módulos para evitar errores de compilación
+RUN cd /usr/local/src/freeswitch/ && \
+    echo "# Módulos esenciales para funcionamiento básico" > modules.conf && \
+    echo "loggers/mod_console" >> modules.conf && \
+    echo "loggers/mod_logfile" >> modules.conf && \
+    echo "loggers/mod_syslog" >> modules.conf && \
+    echo "# Aplicaciones básicas" >> modules.conf && \
+    echo "applications/mod_commands" >> modules.conf && \
+    echo "applications/mod_dptools" >> modules.conf && \
+    echo "applications/mod_db" >> modules.conf && \
+    echo "applications/mod_hash" >> modules.conf && \
+    echo "applications/mod_expr" >> modules.conf && \
+    echo "# Endpoints y SIP" >> modules.conf && \
+    echo "endpoints/mod_sofia" >> modules.conf && \
+    echo "# Codecs básicos" >> modules.conf && \
+    echo "codecs/mod_g711" >> modules.conf && \
+    echo "codecs/mod_g729" >> modules.conf && \
+    echo "# Event Socket para fs_cli" >> modules.conf && \
+    echo "event_handlers/mod_event_socket" >> modules.conf && \
+    echo "# ASR para detección de buzones" >> modules.conf && \
+    echo "asr_tts/mod_vosk" >> modules.conf && \
+    echo "# Lua scripting" >> modules.conf && \
+    echo "languages/mod_lua" >> modules.conf && \
+    echo "# XML tools" >> modules.conf && \
+    echo "xml_int/mod_xml_cdr" >> modules.conf && \
+    echo "xml_int/mod_xml_rpc" >> modules.conf && \
+    echo "# Formato básicos" >> modules.conf && \
+    echo "formats/mod_native_file" >> modules.conf && \
+    echo "formats/mod_sndfile" >> modules.conf && \
+    echo "formats/mod_tone_stream" >> modules.conf && \
+    echo "formats/mod_local_stream" >> modules.conf && \
+    echo "# Say" >> modules.conf && \
+    echo "say/mod_say_en" >> modules.conf
+
+# Configurar y compilar FreeSWITCH con módulos mínimos
+RUN cd /usr/local/src/freeswitch/ && \
+    ./configure --enable-core-pgsql-support --enable-core-odbc-support && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+
+# Verificar que los módulos se compilaron correctamente
+RUN echo "=== Verificando módulos compilados ===" && \
+    ls -la /usr/local/freeswitch/mod/ && \
+    echo "=== Módulos en directorio: $(ls /usr/local/freeswitch/mod/ | wc -l) ==="
+
+# Instalar configuraciones básicas
+RUN cd /usr/local/src/freeswitch/ && \
+    make samples || echo "Samples instalados con advertencias"
+
+# Configuración adicional
+RUN ln -s /usr/local/freeswitch/conf /etc/freeswitch && \
+    ln -s /usr/local/freeswitch/bin/fs_cli /usr/bin/fs_cli && \
+    ln -s /usr/local/freeswitch/bin/freeswitch /usr/sbin/freeswitch
+
+# Verificar instalación de módulos
+RUN echo "=== Verificando módulos instalados ===" && \
+    ls -la /usr/local/freeswitch/mod/*.so && \
+    echo "=== $(ls /usr/local/freeswitch/mod/*.so | wc -l) módulos instalados correctamente ==="
+
+# Expone los puertos necesarios para FreeSWITCH
+EXPOSE 5060-5061/udp
+EXPOSE 5060-5061/tcp
+EXPOSE 8021/tcp
+
+# Comando de inicio optimizado para contenedores
+CMD ["/usr/local/freeswitch/bin/freeswitch", "-nc", "-nf"]

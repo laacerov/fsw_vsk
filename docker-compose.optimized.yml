@@ -1,0 +1,26 @@
+services:
+  freeswitch:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.optimized
+    container_name: freeswitch-vosk
+    # volumes:
+      # - ./conf/:/usr/local/freeswitch/conf/
+    ports:
+      - "5060:5060/udp"   # SIP UDP
+      - "5060:5060/tcp"   # SIP TCP  
+      - "8021:8021/tcp"   # Event Socket (fs_cli)
+      - "16384-16500:16384-16500/udp"  # RTP para audio
+    environment:
+      - FS_CLI_HOST=127.0.0.1
+      - FS_CLI_PORT=8021
+      - FS_CLI_PASSWORD=ClueCon
+    restart: unless-stopped
+    # Configuración adicional para mejor rendimiento
+    ulimits:
+      memlock: -1
+      stack: 8192
+    # Capacidades necesarias (opcional)
+    cap_add:
+      - SYS_NICE
+      - NET_ADMIN

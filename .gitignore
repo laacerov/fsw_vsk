@@ -1,0 +1,56 @@
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# FreeSWITCH
+recordings/
+/tmp/
+*.wav
+*.gsm
+*.raw
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.backup
+*.bak
+backup-*.tar.gz
+
+# Database
+*.db
+*.sqlite
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Node.js (if used)
+node_modules/
+npm-debug.log*
+
+# Python (if used)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local configuration
+local.conf
+custom.xml

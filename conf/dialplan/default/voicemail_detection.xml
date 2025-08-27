@@ -1,0 +1,155 @@
+<!-- 
+FreeSWITCH Dialplan para Detección de Buzones de Voz
+Configuración optimizada para el sistema de detección automática
+-->
+
+<include>
+  <!-- Extensión principal para detección de buzones -->
+  <extension name="voicemail_detector">
+    <condition field="destination_number" expression="^(\d+)$">
+      
+      <!-- Configurar variables de sesión -->
+      <action application="set" data="call_timeout=30"/>
+      <action application="set" data="hangup_after_bridge=true"/>
+      <action application="set" data="continue_on_fail=true"/>
+      <action application="set" data="detection_start_time=${strftime(%s)}"/>
+      <action application="set" data="call_uuid=${uuid}"/>
+      
+      <!-- Log del inicio de detección -->
+      <action application="log" data="INFO === INICIO DETECCIÓN BUZÓN ==="/>
+      <action application="log" data="INFO Call-ID: ${call_uuid}"/>
+      <action application="log" data="INFO Caller: ${caller_id_number}"/>
+      <action application="log" data="INFO Destination: ${destination_number}"/>
+      
+      <!-- Responder la llamada para iniciar análisis -->
+      <action application="answer"/>
+      <action application="sleep" data="500"/>
+      
+      <!-- Configurar grabación temporal para análisis (opcional) -->
+      <action application="set" data="record_file=/tmp/detection_${call_uuid}.wav"/>
+      <action application="record_session" data="${record_file}"/>
+      
+      <!-- Inicializar detección ASR con mod_vosk -->
+      <action application="detect_speech" data="vosk default default"/>
+      
+      <!-- Configurar eventos de speech detection -->
+      <action application="set" data="speech_engine=vosk"/>
+      <action application="bind_meta_app" data="1 b s detect_speech::stop"/>
+      
+      <!-- Script Lua para lógica de detección -->
+      <action application="lua" data="voicemail_detector.lua"/>
+      
+      <!-- Playback silencioso para permitir análisis durante 15 segundos -->
+      <action application="playback" data="silence_stream://15000"/>
+      
+      <!-- Detener detección ASR -->
+      <action application="detect_speech" data="stop"/>
+      
+      <!-- Detener grabación -->
+      <action application="stop_record_session" data="${record_file}"/>
+      
+      <!-- Evaluar resultado de detección -->
+      <action application="lua" data="evaluate_detection_result.lua"/>
+      
+      <!-- Acción basada en resultado -->
+      <action application="transfer" data="${detection_action} XML default"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Extensión para casos de buzón confirmado -->
+  <extension name="voicemail_confirmed">
+    <condition field="destination_number" expression="^(vm_confirmed)$">
+      
+      <action application="log" data="WARNING === BUZÓN DETECTADO - CORTANDO LLAMADA ==="/>
+      <action application="log" data="INFO Call-ID: ${call_uuid}"/>
+      <action application="log" data="INFO Confidence: ${detection_confidence}"/>
+      
+      <!-- Registrar detección en base de datos -->
+      <action application="lua" data="log_detection.lua voicemail ${detection_confidence}"/>
+      
+      <!-- Enviar código SIP 503 y cortar -->
+      <action application="respond" data="503 Service Unavailable - Voicemail Detected"/>
+      <action application="hangup" data="CALL_REJECTED"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Extensión para casos dudosos -->
+  <extension name="voicemail_uncertain">
+    <condition field="destination_number" expression="^(vm_uncertain)$">
+      
+      <action application="log" data="INFO === DETECCIÓN DUDOSA - CONTINUANDO LLAMADA ==="/>
+      <action application="log" data="INFO Call-ID: ${call_uuid}"/>
+      <action application="log" data="INFO Confidence: ${detection_confidence}"/>
+      
+      <!-- Registrar para aprendizaje -->
+      <action application="lua" data="log_detection.lua uncertain ${detection_confidence}"/>
+      
+      <!-- Continuar con llamada normal -->
+      <action application="transfer" data="normal_call XML default"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Extensión para llamadas normales (humanos) -->
+  <extension name="human_detected">
+    <condition field="destination_number" expression="^(human_confirmed)$">
+      
+      <action application="log" data="INFO === HUMANO DETECTADO - CONTINUANDO ==="/>
+      
+      <!-- Registrar detección -->
+      <action application="lua" data="log_detection.lua human ${detection_confidence}"/>
+      
+      <!-- Continuar con llamada normal -->
+      <action application="transfer" data="normal_call XML default"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Extensión para timeout de detección -->
+  <extension name="detection_timeout">
+    <condition field="destination_number" expression="^(detection_timeout)$">
+      
+      <action application="log" data="WARNING === TIMEOUT EN DETECCIÓN ==="/>
+      
+      <!-- Registrar timeout -->
+      <action application="lua" data="log_detection.lua timeout 0"/>
+      
+      <!-- Continuar llamada normal por seguridad -->
+      <action application="transfer" data="normal_call XML default"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Extensión para procesamiento normal de llamada -->
+  <extension name="normal_call">
+    <condition field="destination_number" expression="^(normal_call)$">
+      
+      <action application="log" data="INFO === PROCESANDO LLAMADA NORMAL ==="/>
+      
+      <!-- Aquí va la lógica normal de tu sistema -->
+      <!-- Por ejemplo, bridge a destino, IVR, etc. -->
+      
+      <!-- Ejemplo: Bridge a extensión destino -->
+      <action application="bridge" data="sofia/internal/${original_destination_number}@${domain_name}"/>
+      
+      <!-- Si no responde, ir a buzón REAL -->
+      <action application="voicemail" data="default ${domain_name} ${original_destination_number}"/>
+      
+    </condition>
+  </extension>
+
+  <!-- Extensión para manejo de errores -->
+  <extension name="detection_error">
+    <condition field="destination_number" expression="^(detection_error)$">
+      
+      <action application="log" data="ERROR === ERROR EN SISTEMA DE DETECCIÓN ==="/>
+      
+      <!-- En caso de error, continuar llamada normal por seguridad -->
+      <action application="transfer" data="normal_call XML default"/>
+      
+    </condition>
+  </extension>
+
+</include>
