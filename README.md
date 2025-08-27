@@ -53,13 +53,13 @@ mod_abstraction.so  - Abstracción (70KB)
 
 ### Opción 1: Script Automático
 ```bash
-curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/freeswitch-voicemail-detection/main/deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/laacerov/freeswitch-voicemail-detection/main/deploy.sh | bash
 ```
 
 ### Opción 2: Manual
 ```bash
 # Clonar repositorio
-git clone https://github.com/YOUR_USERNAME/freeswitch-voicemail-detection.git
+git clone https://github.com/laacerov/freeswitch-voicemail-detection.git
 cd freeswitch-voicemail-detection
 
 # Configurar variables de entorno

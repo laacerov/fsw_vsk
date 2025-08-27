@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_NAME="FreeSWITCH Voicemail Detection System"
-REPO_URL="https://github.com/YOUR_USERNAME/freeswitch-voicemail-detection.git"
+REPO_URL="https://github.com/laacerov/freeswitch-voicemail-detection.git"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE} $PROJECT_NAME${NC}"
