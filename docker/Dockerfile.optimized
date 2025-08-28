@@ -85,6 +85,8 @@ RUN cd /usr/local/src/freeswitch/ && \
     echo "asr_tts/mod_vosk" >> modules.conf && \
     echo "# Dialplan XML (CRÍTICO)" >> modules.conf && \
     echo "dialplans/mod_dialplan_xml" >> modules.conf && \
+    echo "# EXPLICITAMENTE EXCLUIDOS (causan errores)" >> modules.conf && \
+    echo "#applications/mod_avmd" >> modules.conf && \
     echo "# Lua scripting" >> modules.conf && \
     echo "languages/mod_lua" >> modules.conf && \
     echo "# XML tools" >> modules.conf && \
@@ -101,14 +103,15 @@ RUN cd /usr/local/src/freeswitch/ && \
 # Configurar y compilar FreeSWITCH con módulos mínimos
 RUN cd /usr/local/src/freeswitch/ && \
     ./configure --enable-core-pgsql-support --enable-core-odbc-support && \
+    echo "=== Configuración completada ===" && \
     make -j$(nproc) && \
+    echo "=== Compilación completada ===" && \
     make install && \
-    ldconfig
-
-# Compilar mod_dialplan_xml individualmente (CRÍTICO para dialplan)
-RUN cd /usr/local/src/freeswitch/src/mod/dialplans/mod_dialplan_xml && \
-    make && make install && \
-    ldconfig
+    echo "=== Instalación completada ===" && \
+    ldconfig && \
+    echo "=== ldconfig ejecutado ===" && \
+    ls -la /usr/local/freeswitch/mod/ && \
+    echo "=== Verificando módulos instalados ==="
 
 # Verificar que los módulos se compilaron correctamente
 RUN echo "=== Verificando módulos compilados ===" && \
