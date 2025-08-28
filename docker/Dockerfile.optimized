@@ -83,6 +83,8 @@ RUN cd /usr/local/src/freeswitch/ && \
     echo "event_handlers/mod_event_socket" >> modules.conf && \
     echo "# ASR para detección de buzones" >> modules.conf && \
     echo "asr_tts/mod_vosk" >> modules.conf && \
+    echo "# Dialplan XML (CRÍTICO)" >> modules.conf && \
+    echo "dialplans/mod_dialplan_xml" >> modules.conf && \
     echo "# Lua scripting" >> modules.conf && \
     echo "languages/mod_lua" >> modules.conf && \
     echo "# XML tools" >> modules.conf && \
@@ -101,6 +103,11 @@ RUN cd /usr/local/src/freeswitch/ && \
     ./configure --enable-core-pgsql-support --enable-core-odbc-support && \
     make -j$(nproc) && \
     make install && \
+    ldconfig
+
+# Compilar mod_dialplan_xml individualmente (CRÍTICO para dialplan)
+RUN cd /usr/local/src/freeswitch/src/mod/dialplans/mod_dialplan_xml && \
+    make && make install && \
     ldconfig
 
 # Verificar que los módulos se compilaron correctamente
