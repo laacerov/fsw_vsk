@@ -20,8 +20,8 @@ services:
   # FreeSWITCH with Voicemail Detection
   freeswitch:
     build:
-      context: ./docker
-      dockerfile: Dockerfile.optimized
+      context: .
+      dockerfile: docker/Dockerfile.optimized
       args:
         - EXTERNAL_IP=${FREESWITCH_EXTERNAL_IP:-192.168.1.100}
     container_name: ${FREESWITCH_CONTAINER_NAME:-freeswitch-voicemail-detector}
