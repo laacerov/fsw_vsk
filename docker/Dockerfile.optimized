@@ -71,12 +71,15 @@ loggers/mod_console
 loggers/mod_logfile
 loggers/mod_syslog
 
-# Applications - Solo los esenciales
+# Applications - Esenciales + Detección
 applications/mod_commands  
 applications/mod_dptools
 applications/mod_db
 applications/mod_hash
 applications/mod_expr
+applications/mod_avmd
+applications/mod_conference
+applications/mod_valet_parking
 
 # Endpoints
 endpoints/mod_sofia
@@ -115,13 +118,16 @@ EOF
     cat modules.conf && \
     echo "=== Total módulos: $(wc -l < modules.conf) ==="
 
-# Configurar y compilar FreeSWITCH con módulos mínimos y flags menos estrictos
+# Establecer flags de compilación para evitar warnings como errores
+ENV CFLAGS="-O2 -g -fPIC"
+ENV CXXFLAGS="-O2 -g -fPIC"
+
+# Configurar y compilar FreeSWITCH con módulos de detección habilitados
 RUN cd /usr/local/src/freeswitch/ && \
-    ./configure --enable-core-pgsql-support --enable-core-odbc-support && \
-    echo "=== Configuración completada ===" && \
-    export CFLAGS="-Wno-error=format-overflow -Wno-format-overflow" && \
-    export CXXFLAGS="-Wno-error=format-overflow -Wno-format-overflow" && \
-    make -j$(nproc) CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" && \
+    ./configure --enable-core-pgsql-support \
+                --enable-core-odbc-support && \
+    echo "=== Configuración completada con CFLAGS: $CFLAGS ===" && \
+    make -j$(nproc) && \
     echo "=== Compilación completada ===" && \
     make install && \
     echo "=== Instalación completada ===" && \
