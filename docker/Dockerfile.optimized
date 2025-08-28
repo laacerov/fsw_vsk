@@ -113,7 +113,7 @@ say/mod_say_en
 # XML Interfaces
 xml_int/mod_xml_cdr
 xml_int/mod_xml_rpc
-EOF
+EOF && 
     echo "=== Verificando modules.conf creado ===" && \
     cat modules.conf && \
     echo "=== Total módulos: $(wc -l < modules.conf) ==="
