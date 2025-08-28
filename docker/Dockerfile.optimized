@@ -65,7 +65,7 @@ RUN cd /usr/local/src && \
 # Crear configuración mínima de módulos sin problemas
 RUN cd /usr/local/src/freeswitch/ && \
     echo "=== Creando modules.conf mínimo ===" && \
-    cat > modules.conf << 'EOF'
+    cat > modules.conf << 'EOF' && \
 # Loggers
 loggers/mod_console
 loggers/mod_logfile
@@ -113,7 +113,7 @@ say/mod_say_en
 # XML Interfaces
 xml_int/mod_xml_cdr
 xml_int/mod_xml_rpc
-EOF && 
+EOF
     echo "=== Verificando modules.conf creado ===" && \
     cat modules.conf && \
     echo "=== Total módulos: $(wc -l < modules.conf) ==="
