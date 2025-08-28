@@ -62,24 +62,66 @@ RUN cd /usr/local/src && \
     cd freeswitch && \
     ./bootstrap.sh
 
-# Crear configuración de módulos basada en modules.conf.most sin problemas
+# Crear configuración mínima de módulos sin problemas
 RUN cd /usr/local/src/freeswitch/ && \
-    cp build/modules.conf.most modules.conf && \
-    echo "=== Removiendo módulos problemáticos ===" && \
-    sed -i '/applications\/mod_avmd/d' modules.conf && \
-    sed -i '/applications\/mod_conference/d' modules.conf && \
-    sed -i '/applications\/mod_valet_parking/d' modules.conf && \
-    sed -i '/applications\/mod_fifo/d' modules.conf && \
-    echo "=== Agregando mod_vosk ===" && \
-    echo "asr_tts/mod_vosk" >> modules.conf && \
-    echo "=== Verificando modules.conf ===" && \
-    cat modules.conf
+    echo "=== Creando modules.conf mínimo ===" && \
+    cat > modules.conf << 'EOF'
+# Loggers
+loggers/mod_console
+loggers/mod_logfile
+loggers/mod_syslog
 
-# Configurar y compilar FreeSWITCH con módulos mínimos
+# Applications - Solo los esenciales
+applications/mod_commands  
+applications/mod_dptools
+applications/mod_db
+applications/mod_hash
+applications/mod_expr
+
+# Endpoints
+endpoints/mod_sofia
+
+# Codecs básicos
+codecs/mod_g711
+codecs/mod_g729
+
+# Event Handlers
+event_handlers/mod_event_socket
+event_handlers/mod_cdr_csv
+
+# Dialplans
+dialplans/mod_dialplan_xml
+
+# Languages
+languages/mod_lua
+
+# ASR/TTS
+asr_tts/mod_vosk
+
+# Formats
+formats/mod_native_file
+formats/mod_sndfile
+formats/mod_tone_stream
+formats/mod_local_stream
+
+# Say
+say/mod_say_en
+
+# XML Interfaces
+xml_int/mod_xml_cdr
+xml_int/mod_xml_rpc
+EOF
+    echo "=== Verificando modules.conf creado ===" && \
+    cat modules.conf && \
+    echo "=== Total módulos: $(wc -l < modules.conf) ==="
+
+# Configurar y compilar FreeSWITCH con módulos mínimos y flags menos estrictos
 RUN cd /usr/local/src/freeswitch/ && \
     ./configure --enable-core-pgsql-support --enable-core-odbc-support && \
     echo "=== Configuración completada ===" && \
-    make -j$(nproc) && \
+    export CFLAGS="-Wno-error=format-overflow -Wno-format-overflow" && \
+    export CXXFLAGS="-Wno-error=format-overflow -Wno-format-overflow" && \
+    make -j$(nproc) CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" && \
     echo "=== Compilación completada ===" && \
     make install && \
     echo "=== Instalación completada ===" && \
