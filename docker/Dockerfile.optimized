@@ -62,43 +62,18 @@ RUN cd /usr/local/src && \
     cd freeswitch && \
     ./bootstrap.sh
 
-# Crear configuración mínima de módulos para evitar errores de compilación
+# Crear configuración de módulos basada en modules.conf.most sin problemas
 RUN cd /usr/local/src/freeswitch/ && \
-    echo "# Módulos esenciales para funcionamiento básico" > modules.conf && \
-    echo "loggers/mod_console" >> modules.conf && \
-    echo "loggers/mod_logfile" >> modules.conf && \
-    echo "loggers/mod_syslog" >> modules.conf && \
-    echo "# Aplicaciones básicas" >> modules.conf && \
-    echo "applications/mod_commands" >> modules.conf && \
-    echo "applications/mod_dptools" >> modules.conf && \
-    echo "applications/mod_db" >> modules.conf && \
-    echo "applications/mod_hash" >> modules.conf && \
-    echo "applications/mod_expr" >> modules.conf && \
-    echo "# Endpoints y SIP" >> modules.conf && \
-    echo "endpoints/mod_sofia" >> modules.conf && \
-    echo "# Codecs básicos" >> modules.conf && \
-    echo "codecs/mod_g711" >> modules.conf && \
-    echo "codecs/mod_g729" >> modules.conf && \
-    echo "# Event Socket para fs_cli" >> modules.conf && \
-    echo "event_handlers/mod_event_socket" >> modules.conf && \
-    echo "# ASR para detección de buzones" >> modules.conf && \
+    cp build/modules.conf.most modules.conf && \
+    echo "=== Removiendo módulos problemáticos ===" && \
+    sed -i '/applications\/mod_avmd/d' modules.conf && \
+    sed -i '/applications\/mod_conference/d' modules.conf && \
+    sed -i '/applications\/mod_valet_parking/d' modules.conf && \
+    sed -i '/applications\/mod_fifo/d' modules.conf && \
+    echo "=== Agregando mod_vosk ===" && \
     echo "asr_tts/mod_vosk" >> modules.conf && \
-    echo "# Dialplan XML (CRÍTICO)" >> modules.conf && \
-    echo "dialplans/mod_dialplan_xml" >> modules.conf && \
-    echo "# EXPLICITAMENTE EXCLUIDOS (causan errores)" >> modules.conf && \
-    echo "#applications/mod_avmd" >> modules.conf && \
-    echo "# Lua scripting" >> modules.conf && \
-    echo "languages/mod_lua" >> modules.conf && \
-    echo "# XML tools" >> modules.conf && \
-    echo "xml_int/mod_xml_cdr" >> modules.conf && \
-    echo "xml_int/mod_xml_rpc" >> modules.conf && \
-    echo "# Formato básicos" >> modules.conf && \
-    echo "formats/mod_native_file" >> modules.conf && \
-    echo "formats/mod_sndfile" >> modules.conf && \
-    echo "formats/mod_tone_stream" >> modules.conf && \
-    echo "formats/mod_local_stream" >> modules.conf && \
-    echo "# Say" >> modules.conf && \
-    echo "say/mod_say_en" >> modules.conf
+    echo "=== Verificando modules.conf ===" && \
+    cat modules.conf
 
 # Configurar y compilar FreeSWITCH con módulos mínimos
 RUN cd /usr/local/src/freeswitch/ && \
