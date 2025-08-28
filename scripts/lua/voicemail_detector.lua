@@ -1,15 +1,17 @@
 --[[
-FreeSWITCH Lua Script: Voicemail Detection Engine
-Conecta con la API de clasificación para determinar si una llamada es un buzón
+FreeSWITCH Lua Script: Post-Bridge Voicemail Detection Engine  
+Se activa DESPUÉS de establecer el bridge para detección en paralelo
+Análisis durante los primeros 3 segundos de conexión
 ]]
 
 -- Configuración
 local config = {
-    classification_api_url = "http://classification-api:8080",
-    max_detection_time = 15, -- segundos
+    classification_api_url = "http://classification-api:8080", 
+    max_detection_time = 3, -- 3 segundos como especifica el usuario
     confidence_threshold_high = 85.0,
     confidence_threshold_low = 60.0,
-    debug_mode = true
+    debug_mode = true,
+    vosk_server_url = "ws://vosk-voicemail:2800"
 }
 
 -- Función de logging

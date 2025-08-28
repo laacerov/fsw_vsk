@@ -35,8 +35,11 @@ Maneja números con prefijo 77751XXXXXXXX
       <!-- Configurar codec preference para llamadas salientes -->
       <action application="set" data="absolute_codec_string=PCMU,PCMA,G729"/>
       
-      <!-- Ejecutar Bridge con Detección Paralela -->
-      <action application="lua" data="outbound_bridge_with_detection.lua"/>
+      <!-- Configurar detección post-answer -->
+      <action application="set" data="execute_on_answer=lua post_answer_voicemail_detection.lua"/>
+      
+      <!-- Bridge directo al gateway -->
+      <action application="bridge" data="sofia/gateway/voicemail_detection_gw/${destination_clean}"/>
       
     </condition>
   </extension>

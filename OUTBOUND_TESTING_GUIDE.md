@@ -1,4 +1,15 @@
-# 🔄 Guía de Pruebas para Llamadas Salientes con Detección de Buzones
+# 🔄 Guía de Pruebas - Detección de Buzones Post-Answer
+
+## 🎯 Flujo Actualizado de Detección
+
+### ⚡ **NUEVO**: Detección Post-Conexión
+El sistema ahora detecta buzones **DESPUÉS** de establecer la conexión:
+
+1. **📞 Llamada**: `77751XXXXXXXX` desde extensión 1001
+2. **🔗 Bridge inmediato**: Se conecta al gateway `172.16.250.197`
+3. **⏱️ Análisis 3s**: Una vez respondida, analiza primeros 3 segundos
+4. **🛑 Corte automático**: Error `503 Service Unavailable` si detecta buzón
+5. **✅ Continúa**: Llamada normal si detecta humano
 
 ## 📋 Configuración Implementada
 
@@ -11,8 +22,8 @@
 ### 👤 Extensión de Prueba
 - **Número**: `1001`
 - **Password**: `1001`
-- **Tipo**: Agente de prueba para detección
-- **Permisos**: Llamadas salientes con prefijo 77751
+- **Detección**: Habilitada automáticamente
+- **Timeout**: 3 segundos exactos post-answer
 
 ## 🚀 Cómo Realizar Pruebas
 
@@ -124,18 +135,19 @@ fs> show dialplan
 fs> originate sofia/gateway/voicemail_detection_gw/777517777 &echo
 ```
 
-## 📊 Casos de Prueba
+## 📊 Casos de Prueba Actualizados
 
-### Caso 1: Detección de Buzón Real
-```
+### 🎯 Caso 1: Detección de Buzón Post-Answer
+```bash
 1. Marcar desde softphone: 777511234567890
-2. Esperar que conteste (si es buzón)
-3. Observar logs: debe detectar patrones de buzón
-4. Resultado esperado: Llamada cortada + registro en BD
+2. ✅ Bridge se establece inmediatamente al gateway
+3. ⏱️  Una vez respondida → inicia análisis automático (3s)
+4. 🛑 Si detecta buzón → corte con 503 Service Unavailable
+5. 📝 Logs muestran: "BUZÓN CONFIRMADO - CORTANDO INMEDIATAMENTE"
 ```
 
-### Caso 2: Llamada a Humano
-```
+### ✅ Caso 2: Llamada a Humano
+```bash
 1. Marcar desde softphone: 777519876543210
 2. Si contesta persona real
 3. Observar logs: debe identificar como humano

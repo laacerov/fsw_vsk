@@ -94,29 +94,52 @@ freeswitch@local> show asr
 
 ## 📋 Configuración para Detección de Buzones
 
-### 1. Configurar servidor Vosk
-Editar `conf/autoload_configs/vosk.conf.xml`:
+### 🔥 Flujo de Detección Post-Conexión
+
+El sistema implementa detección **DESPUÉS** de establecer la llamada:
+
+1. **📞 Llamada saliente** con prefijo `77751XXXXXXXX`
+2. **🔗 Bridge inmediato** al gateway `172.16.250.197`  
+3. **⚡ Detección automática** en los **primeros 3 segundos** post-answer
+4. **🛑 Corte inmediato** con error `503` si detecta buzón de voz
+5. **✅ Continúa normal** si detecta humano
+
+### 1. Gateway Configuration
 ```xml
-<configuration name="vosk.conf" description="Vosk ASR Configuration">
-  <settings>
-    <param name="server-url" value="ws://YOUR_VOSK_SERVER:2800"/>
-    <param name="return-json" value="1"/>
-  </settings>
-</configuration>
+<!-- conf/sip_profiles/external/voicemail_detection_gw.xml -->
+<gateway name="voicemail_detection_gw">
+  <param name="proxy" value="172.16.250.197"/>
+  <param name="username" value="77751"/>
+  <param name="password" value="77751"/>
+  <param name="register" value="false"/>
+</gateway>
 ```
 
-### 2. Dialplan para detección
-Ejemplo en `conf/dialplan/default/voicemail_detect.xml`:
+### 2. Dialplan para Llamadas Salientes
 ```xml
-<extension name="voicemail_detection">
-  <condition field="destination_number" expression="^(detect_vm)$">
-    <action application="answer"/>
-    <action application="detect_speech" data="vosk default default"/>
-    <action application="playback" data="silence_stream://30000"/>
-    <action application="detect_speech" data="resume"/>
-    <!-- Lógica de detección de patrones de buzón -->
+<!-- conf/dialplan/default/outbound_voicemail_detection.xml -->
+<extension name="outbound_voicemail_detection">
+  <condition field="destination_number" expression="^(77751)(\d{7,15})$">
+    <!-- Configurar detección post-answer -->
+    <action application="set" data="execute_on_answer=lua post_answer_voicemail_detection.lua"/>
+    
+    <!-- Bridge directo al gateway -->
+    <action application="bridge" data="sofia/gateway/voicemail_detection_gw/${destination_clean}"/>
   </condition>
 </extension>
+```
+
+### 3. Script Post-Answer Detection
+```lua
+-- scripts/lua/post_answer_voicemail_detection.lua
+-- ✅ Análisis exacto de 3 segundos
+-- ✅ Patrones optimizados en español  
+-- ✅ Corte inmediato con 503 si detecta buzón
+-- ✅ Continúa si detecta humano
+local config = {
+    detection_timeout = 3,        -- 3 segundos exactos
+    confidence_threshold = 85.0,  -- 85% confianza mínima
+}
 ```
 
 ## 🐳 Estructura del Proyecto
@@ -173,22 +196,76 @@ docker exec freeswitch-vosk cat /usr/local/freeswitch/conf/autoload_configs/vosk
 - **RAM requerida**: Mínimo 2GB, recomendado 4GB
 - **CPU**: Funciona en sistemas x86_64
 
-## 🎙️ Casos de Uso
+## 🎙️ Casos de Uso Principales
 
-1. **Detección automática de buzones de voz**
-2. **Transcripción en tiempo real de llamadas** 
-3. **Análisis de patrones de audio**
-4. **Sistemas IVR inteligentes**
-5. **Monitoreo de calidad de llamadas**
+### 🎯 Detección de Buzones en Llamadas Salientes
+- **Análisis post-conexión** en primeros 3 segundos
+- **Corte automático** con error 503 si detecta buzón
+- **Optimización de costos** en campañas outbound
+- **Reducción de tiempo** perdido en buzones
+
+### 📊 Casos Secundarios  
+1. **Transcripción en tiempo real de llamadas** 
+2. **Análisis de patrones de audio**
+3. **Sistemas IVR inteligentes**
+4. **Monitoreo de calidad de llamadas**
+
+## 🧪 Pruebas del Sistema
+
+### Configuración de Softphone
+```bash
+Servidor: YOUR_SERVER_IP:5060
+Usuario: 1001  
+Password: 1001
+Protocolo: UDP
+```
+
+### Números de Prueba
+```bash
+# Llamar desde softphone registrado como 1001:
+77751123456789  # Se conecta al gateway 172.16.250.197
+                # Activa detección automática post-answer
+                # Corta si detecta buzón en 3 segundos
+
+# Números locales de prueba (simulan buzones):
+777519999       # Simula buzón típico
+777518888       # Simula buzón corporativo  
+777517777       # Simula buzón personal
+```
+
+### Monitoreo en Tiempo Real
+```bash
+# Ver logs de detección
+docker logs -f freeswitch
+
+# Conectar a fs_cli para debug
+docker exec -it freeswitch fs_cli
+
+# Verificar gateway
+freeswitch> sofia status gateway voicemail_detection_gw
+```
 
 ## ⚡ Optimizaciones Incluidas
 
+### 🏗️ Build Optimizations
 - ✅ Compilación en paralelo (`-j$(nproc)`)
 - ✅ Dependencias mínimas necesarias  
 - ✅ Módulos compilados individualmente
 - ✅ Cache de librerías optimizado
+- ✅ **mod_dialplan_xml compilado manualmente** (fix crítico)
+
+### 🚀 Runtime Optimizations  
+- ✅ **Detección post-answer** (no pre-conexión)
+- ✅ **Timeout exacto de 3 segundos**
+- ✅ **Corte inmediato** si detecta buzón
+- ✅ **Patrones optimizados** para español
+- ✅ **Event-driven** sin polling innecesario
+
+### 🔧 Infrastructure
 - ✅ Configuración de puertos específica
 - ✅ Reinicio automático del contenedor
+- ✅ Gateway pre-configurado para 172.16.250.197
+- ✅ Autorización con prefijo 77751
 
 ---
 
